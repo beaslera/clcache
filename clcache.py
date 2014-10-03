@@ -40,6 +40,7 @@ from subprocess import Popen, PIPE, STDOUT
 import sys
 import multiprocessing
 import re
+import tempfile
 
 HASH_ALGORITHM = hashlib.md5
 
@@ -532,7 +533,7 @@ def splitCommandsFile(line):
         if line[i] == ' ' and not insideQuotes and wordStart >= 0:
             result.append(extractArgument(line, wordStart, i))
             wordStart = -1
-        if line[i] == '"' and ((i == 0) or (i > 0 and line[i - 1] != '\\')):
+        if line[i] == '"': #by not checking for '\\"' this cannot recognize escaped quotes, but when building with VS the Fo value is a directory that ends in '\\"', which is not attempting to escape the quotes.
             insideQuotes = not insideQuotes
         if line[i] != ' ' and wordStart < 0:
             wordStart = i
@@ -662,6 +663,13 @@ def analyzeCommandLine(cmdline):
             srcFileName = os.path.basename(sourceFiles[0])
             outputFile = os.path.join(outputFile,
                                       os.path.splitext(srcFileName)[0] + ".obj")
+
+        # When called from VS, the Fo option is a directory instead of a file.
+        # The process* commands need the filename so it is added here based on the source filename.
+        if outputFile.startswith('"') and outputFile.endswith('"'):
+            outputFile = outputFile[1:-1]
+        if len(outputFile) > 0 and outputFile[-1] == '\\':
+            outputFile = outputFile + sourceFiles[0][(sourceFiles[0].rfind('\\') + 1):(sourceFiles[0].rfind('.') + 1)] + str('obj')
     elif preprocessing:
         if 'P' in options:
             # Prerpocess to file.
@@ -691,7 +699,20 @@ def analyzeCommandLine(cmdline):
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
-    realCmdline = [compilerBinary] + cmdLine
+    # When called from VS, the Fo option is a string naming a local directory and ending with "\\", e.g., "LibDir\Release\\"
+    # The previous code (utf decoder?) is stripping one of the backslashes.  This for loop adds it back.
+    for i in xrange(len(cmdLine)):
+        if cmdLine[i].startswith('/Fo') and cmdLine[i].endswith('\\"') and not cmdLine[i].endswith('\\\\"'):
+            cmdLine[i] = cmdLine[i][:-1] + str('\\"')
+
+    # When clcache is called from VS and passes on the cmdLine to the real compiler, the Fo option is not being correctly recognized by the real compiler.
+    # Storing the cmdLine in a temporary file fixes the issue.
+    tempFile = tempfile.NamedTemporaryFile(suffix='.rsp', delete=False)
+    tempFile.write(' '.join(cmdLine))
+    tempFile.close()
+    
+    #realCmdline = [compilerBinary] + cmdLine
+    realCmdline = [compilerBinary, str("@") + tempFile.name]
     printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
 
     returnCode = None
@@ -703,6 +724,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
         returnCode = compilerProcess.returncode
     else:
         returnCode = subprocess.call(realCmdline, universal_newlines=True)
+
+    os.remove(tempFile.name)
 
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, stdout, stderr
