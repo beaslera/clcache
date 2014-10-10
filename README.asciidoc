@@ -125,7 +125,7 @@ finished its work, the generated object file (as well as the output printed
 by the compiler) is copied to the cache.
 
 How to setup for use with the Visual Studio GUI (i.e., MSBuild)
-~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 . Using a 32-bit build environment create clcache.exe. The 32-bit
 build environment is necessary for py2exe to be able to bundle all the
