@@ -124,6 +124,53 @@ invocation to the actual compiler. Once the real compiler successfully
 finished its work, the generated object file (as well as the output printed
 by the compiler) is copied to the cache.
 
+How to setup for use with the Visual Studio GUI (i.e., MSBuild)
+~~~~~~~
+
+. Using a 32-bit build environment create clcache.exe. The 32-bit
+build environment is necessary for py2exe to be able to bundle all the
+files into a single executable, clcache.exe, because py2exe's
+bundle_files is not currently working on 64-bit.
+..To get a 32-bit build environment, open a command window and type
+"c:\Program Files (x86)\Microsoft Visual Studio
+11.0\VC\vcvarsall.bat". (for VS 2012)
+..In that window cd to the clcache directory and type "python setup.py
+py2exe" (I'm using python 2.7 and py2exe is a separate install.)
+. Visual Studio knows the full path to cl.exe, so we need to replace
+the real cl.exe.
+..Assuming you are building in 64-bit, open c:\Program Files
+(x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\.  Rename cl.exe
+to something else, e.g., cl-real.exe.  Also rename cl.exe.config
+similarly, e.g., cl-real.exe.config.
+..Then copy clcache.exe to that folder and rename it to cl.exe.
+. clcache needs to know how to call the real compiler.  Create an
+environment variable called CLCACHE_CL and set it to the full path to
+the real compiler, e.g., c:\Program Files (x86)\Microsoft Visual
+Studio 11.0\VC\bin\x86_amd64\cl-real.exe
+. VS will normally track file access during builds, storing that
+information in *.tlog files, and using it to know when to rebuild
+objects and which files should be deleted on "rebuild" or "clean"
+actions.  Since clcache.exe will access the stats file, and the cached
+objects, but not the actual dependencies (which are accessed by the
+real compiler) we need to tell VS not to track file access (otherwise
+VS will not compile objects it should, will compile objects it
+shouldn't, and will delete the cache when cleaning).  The project
+property TrackFileAccess needs to be set to false.  There are multiple
+ways to do so, including adding the property to the vcxproj file and
+setting an environment variable named TrackFileAccess (capitalization
+unimportant) with a value of false.
+. Optionally specify which directory should hold the cached files, via
+CLCACHE_DIR.
+. Optionally make clcache print messages during builds, via
+CLCACHE_LOG.
+. Optionally set the maximum cache size, by calling "cl -M
+newSizeInBytes" or "clcache -M newSizeInBytes".
+. If it is open, close and restart Visual Studio, so it picks up the
+new environment variables.
+. Build normally in VS.  If CLCACHE_LOG is set, you should see
+messages about "Adding file X to cache..." and in future builds
+"Reusing cached object...".
+
 Credits
 ~~~~~~~
 clcache.py was written by mailto:raabe@froglogic.com[Frerich Raabe] with
