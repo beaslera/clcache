@@ -626,8 +626,8 @@ def analyzeCommandLine(cmdline):
 
     # Technically, it would be possible to support /Zi: we'd just need to
     # copy the generated .pdb files into/out of the cache.
-    if 'Zi' in options:
-        return AnalysisResult.ExternalDebugInfo, None, None
+    if 'Zi' in options or 'ZI' in options:
+        printTraceStatement("Replacing Zi and/or ZI options with Z7.")
     if 'Yu' in options:
         return AnalysisResult.CalledWithPch, None, None
     if 'Tp' in options:
@@ -704,6 +704,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     for i in xrange(len(cmdLine)):
         if cmdLine[i].startswith('/Fo') and cmdLine[i].endswith('\\"') and not cmdLine[i].endswith('\\\\"'):
             cmdLine[i] = cmdLine[i][:-1] + str('\\"')
+        if cmdLine[i] == '/Zi' or cmdLine[i] == 'ZI':
+            cmdLine[i] = '/Z7'
 
     # When clcache is called from VS and passes on the cmdLine to the real compiler, the Fo option is not being correctly recognized by the real compiler.
     # Storing the cmdLine in a temporary file fixes the issue.
