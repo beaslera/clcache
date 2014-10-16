@@ -719,7 +719,9 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     stdout = ''
     stderr = ''
     if captureOutput:
-        compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=PIPE)
+        my_env = os.environ.copy()
+        del my_env['VS_UNICODE_OUTPUT']
+        compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=PIPE, env=my_env)
         stdout, stderr = compilerProcess.communicate()
         returnCode = compilerProcess.returncode
     else:
