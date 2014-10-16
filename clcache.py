@@ -1057,6 +1057,9 @@ def processCompileRequest(compiler, args):
         return invokeRealCompiler(compiler, args[1:])
     if 'CLCACHE_NODIRECT' in os.environ:
         return processNoDirect(stats, cache, compiler, outputFile, cmdLine)
+    if not '/showIncludes' in cmdLine:
+        printTraceStatement("Cannot cache invocation as %s: no /showIncludes flag" % (' '.join(cmdLine)) )
+        return invokeRealCompiler(compiler, sys.argv[1:])
     manifestHash = cache.getManifestHash(compiler, cmdLine, sourceFile)
     manifest = cache.getManifest(manifestHash)
     baseDir = os.environ.get('CLCACHE_BASEDIR')
