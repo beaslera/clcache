@@ -1054,7 +1054,7 @@ def processCompileRequest(compiler, args):
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
     if 'CLCACHE_NODIRECT' in os.environ:
-        return processNoDirect(stats, cache, compiler, cmdLine)
+        return processNoDirect(stats, cache, compiler, outputFile, cmdLine)
     manifestHash = cache.getManifestHash(compiler, cmdLine, sourceFile)
     manifest = cache.getManifest(manifestHash)
     baseDir = os.environ.get('CLCACHE_BASEDIR')
@@ -1082,7 +1082,7 @@ def processCompileRequest(compiler, args):
     else:
         return processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile)
 
-def processNoDirect(stats, cache, compiler, cmdLine):
+def processNoDirect(stats, cache, compiler, outputFile, cmdLine):
     cachekey = cache.computeKey(compiler, cmdLine)
     if cache.hasEntry(cachekey):
         with cache.lock:
