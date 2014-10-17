@@ -127,49 +127,94 @@ by the compiler) is copied to the cache.
 How to setup for use with the Visual Studio GUI (i.e., MSBuild)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-. Using a 32-bit build environment create clcache.exe. The 32-bit
-build environment is necessary for py2exe to be able to bundle all the
-files into a single executable, clcache.exe, because py2exe's
-bundle_files is not currently working on 64-bit.
-..To get a 32-bit build environment, open a command window and type
-"c:\Program Files (x86)\Microsoft Visual Studio
-11.0\VC\vcvarsall.bat". (for VS 2012)
-..In that window cd to the clcache directory and type "python setup.py
-py2exe" (I'm using python 2.7 and py2exe is a separate install.)
-. Visual Studio knows the full path to cl.exe, so we need to replace
-the real cl.exe.
-..Assuming you are building in 64-bit, open c:\Program Files
-(x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\.  Rename cl.exe
-to something else, e.g., cl-real.exe.  Also rename cl.exe.config
-similarly, e.g., cl-real.exe.config.
-..Then copy clcache.exe to that folder and rename it to cl.exe.
+. Create clcache.exe.
+.. py2exe http://www.py2exe.org/ can create executables from Python
+code.
+... Open a command window, cd to the clcache directory (containing
+'clcache.py') and type 'python setup.py py2exe'.
+. Visual Studio knows and uses the full path to 'cl.exe', so we need
+to replace the real 'cl.exe'.
+.. Determine which 'cl.exe' your build process uses.  One approach is
+to start the task manager, switch to the Processes tab, then start a
+build in Visual Studio and watch for Image Names of 'cl.exe'.  Right
+click on one and select 'Open File Location' to open the directory
+containing your real compiler. On my system, that is `c:\Program Files
+(x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\`
+.. Rename 'cl.exe' in that folder to something else, e.g.,
+'cl-real.exe'.  Also rename 'cl.exe.config' similarly, e.g.,
+'cl-real.exe.config'.
+.. Then copy 'clcache.exe' to that folder and rename it to 'cl.exe'.
 . clcache needs to know how to call the real compiler.  Create an
-environment variable called CLCACHE_CL and set it to the full path to
-the real compiler, e.g., c:\Program Files (x86)\Microsoft Visual
-Studio 11.0\VC\bin\x86_amd64\cl-real.exe
+environment variable called +CLCACHE_CL+ and set it to the full path
+to the real compiler, e.g., `c:\Program Files (x86)\Microsoft Visual
+Studio 11.0\VC\bin\x86_amd64\cl-real.exe`
+.. Since this approach uses an environment variable, it can only work
+for one real compiler at any point in time.  So if you switch between
+different real compilers, you will need to switch the environment
+variable appropriately.
 . VS will normally track file access during builds, storing that
-information in *.tlog files, and using it to know when to rebuild
-objects and which files should be deleted on "rebuild" or "clean"
-actions.  Since clcache.exe will access the stats file, and the cached
-objects, but not the actual dependencies (which are accessed by the
-real compiler) we need to tell VS not to track file access (otherwise
-VS will not compile objects it should, will compile objects it
-shouldn't, and will delete the cache when cleaning).  The project
-property TrackFileAccess needs to be set to false.  There are multiple
-ways to do so, including adding the property to the vcxproj file and
-setting an environment variable named TrackFileAccess (capitalization
-unimportant) with a value of false.
+information in '.tlog' files, and using it to know when to rebuild
+objects and which files should be deleted on 'rebuild' or 'clean'
+actions.  Since 'clcache.exe' will access the stats file, and the
+cached objects, but not the actual dependencies (which are accessed by
+the real compiler) we need to tell VS not to track file access
+(otherwise VS will not compile objects it should, will compile objects
+it shouldn't, and will delete the cache when cleaning).
+.. The project property +TrackFileAccess+ needs to be set to false.
+... There are multiple ways to do so, including adding the property to
+the vcxproj file and setting an environment variable named
++TrackFileAccess+ (capitalization unimportant) with a value of
+'false' (no quotes).
+.. Note that setting +TrackFileAccess+ to 'false' will hamper Visual
+Studio's ability to determine when objects need to be recompiled, and
+I have encountered situations in which objects that should be
+recompiled are not, leaving stale '.obj' files that cause link
+failures due to +LNK2001+, unresolved external symbol. Such errors
+disappear with a 'clean' or 'rebuild', which forces VS to rebuild all
+object files. Since clcache is caching the object files, rebuilding in
+this way is a short process.
+... I recommend 'rebuilding' instead of 'building' when
++TrackFileAccess+ is false.
+. Check build flags required for clcache to actually cache.
+.. Do not use +/Zi+ or +/ZI+ flags.
+... Replace +/Zi+ and +/ZI+ flags with +/Z7+.  (Alternatively, just
+append the +/Z7+ flag since Visual Studio will ignore any previous
+debug flag).
+.... +/Zi+ and +/ZI+ create separate '.pdb' files that contain the
+debug symbols for all the objects in a project.  These files are
+incrementally constructed, which makes caching them nontrivial.
+.... +/Z7+ puts the debug symbols inside the object files (which will
+make the '.obj' files larger).
+.. Use the +/showIncludes+ flag.
+... Files included by the source (and files included by those, etc.),
+must be considered part of the source when clcache is determining
+whether or not the result of a potential compilation is already
+cached.
+... To determine which files are included in the source, clcache
+relies on the real compiler.  The +/showIncludes+ flag instructs the
+real compiler to provide that information.
+... If the +/showIncludes+ flag is not part of the call to the
+compiler, clcache will not cache the result and will log the reason.
+.... The +/showIncludes+ flag will cause VS to output many lines of
+included filenames. It may be preferable to set the output verbosity
+to 'Quiet' (Tools->Options->Projects and Solutions->Build and Run).
 . Optionally specify which directory should hold the cached files, via
-CLCACHE_DIR.
-. Optionally make clcache print messages during builds, via
-CLCACHE_LOG.
-. Optionally set the maximum cache size, by calling "cl -M
-newSizeInBytes" or "clcache -M newSizeInBytes".
-. If it is open, close and restart Visual Studio, so it picks up the
++CLCACHE_DIR+ environment variable.
+. Optionally (but recommended) make clcache print a few messages for
+each compile, via +CLCACHE_LOG+ environment variable (value
+irrelevant).
+. Optionally set the maximum cache size, by calling 'cl -M
+newSizeInBytes' or 'clcache -M newSizeInBytes'.
+.. If 'cl -s' shows increasing numbers for 'evicted misses' then
+cached objects are being evicted/deleted because there is not enough
+room, and then later clcache is trying to recall those objects, so a
+larger maximum cache size may improve the probability of a successful
+cache hit.
+. If Visual Studio is open, close and restart it, so it picks up the
 new environment variables.
-. Build normally in VS.  If CLCACHE_LOG is set, you should see
-messages about "Adding file X to cache..." and in future builds
-"Reusing cached object...".
+. Build normally in Visual Studio.  If +CLCACHE_LOG+ is set, you should
+see messages about 'Adding file X to cache...' and in future builds
+'Reusing cached object...'.
 
 Credits
 ~~~~~~~
