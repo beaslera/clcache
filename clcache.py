@@ -699,20 +699,24 @@ def analyzeCommandLine(cmdline):
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
-    # When called from VS, the Fo option is a string naming a local directory and ending with "\\", e.g., "LibDir\Release\\"
-    # The previous code (utf decoder?) is stripping one of the backslashes.  This for loop adds it back.
-    for i in xrange(len(cmdLine)):
-        if cmdLine[i].startswith('/Fo') and cmdLine[i].endswith('\\"') and not cmdLine[i].endswith('\\\\"'):
-            cmdLine[i] = cmdLine[i][:-1] + str('\\"')
+    if cmdLine[0].startswith('@'):
+        passedFile = True
+        realCmdline = [compilerBinary] + cmdLine
+    else:
+        passedFile = False
+        # When called from VS, the Fo option is a string naming a local directory and ending with "\\", e.g., "LibDir\Release\\"
+        # The previous code (utf decoder?) is stripping one of the backslashes.  This for loop adds it back.
+        for i in xrange(len(cmdLine)):
+            if cmdLine[i].startswith('/Fo') and cmdLine[i].endswith('\\"') and not cmdLine[i].endswith('\\\\"'):
+                cmdLine[i] = cmdLine[i][:-1] + str('\\"')
 
-    # When clcache is called from VS and passes on the cmdLine to the real compiler, the Fo option is not being correctly recognized by the real compiler.
-    # Storing the cmdLine in a temporary file fixes the issue.
-    tempFile = tempfile.NamedTemporaryFile(suffix='.rsp', delete=False)
-    tempFile.write(' '.join(cmdLine))
-    tempFile.close()
-    
-    #realCmdline = [compilerBinary] + cmdLine
-    realCmdline = [compilerBinary, str("@") + tempFile.name]
+        # When clcache is called from VS and passes on the cmdLine to the real compiler, the Fo option is not being correctly recognized by the real compiler.
+        # Storing the cmdLine in a temporary file fixes the issue.
+        tempFile = tempfile.NamedTemporaryFile(suffix='.rsp', delete=False)
+        tempFile.write(' '.join(cmdLine))
+        tempFile.close()
+        realCmdline = [compilerBinary, str("@") + tempFile.name]
+
     printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
 
     returnCode = None
@@ -727,7 +731,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     else:
         returnCode = subprocess.call(realCmdline, universal_newlines=True)
 
-    os.remove(tempFile.name)
+    if not passedFile:
+        os.remove(tempFile.name)
 
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, stdout, stderr
