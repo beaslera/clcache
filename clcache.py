@@ -704,13 +704,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
         realCmdline = [compilerBinary] + cmdLine
     else:
         passedFile = False
-        # When called from VS, the Fo option is a string naming a local directory and ending with "\\", e.g., "LibDir\Release\\"
-        # The previous code (utf decoder?) is stripping one of the backslashes.  This for loop adds it back.
-        for i in xrange(len(cmdLine)):
-            if cmdLine[i].startswith('/Fo') and cmdLine[i].endswith('\\"') and not cmdLine[i].endswith('\\\\"'):
-                cmdLine[i] = cmdLine[i][:-1] + str('\\"')
 
-        # When clcache is called from VS and passes on the cmdLine to the real compiler, the Fo option is not being correctly recognized by the real compiler.
+        # When clcache is called from VS and passes on the cmdLine to the real compiler, there are parse errors.
         # Storing the cmdLine in a temporary file fixes the issue.
         tempFile = tempfile.NamedTemporaryFile(suffix='.rsp', delete=False)
         tempFile.write(' '.join(cmdLine))
