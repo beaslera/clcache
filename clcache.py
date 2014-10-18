@@ -531,7 +531,7 @@ def splitCommandsFile(line):
     result = []
     while i < len(line):
         if line[i] == ' ' and not insideQuotes and wordStart >= 0:
-            result.append(extractArgument(line, wordStart, i))
+            result.append(line[wordStart : i])
             wordStart = -1
         if (line[i] == '"') and ((i == 0) or (line[i - 1] != '\\') or ((i > 1) and (line[i - 2] == '\\'))):
             insideQuotes = not insideQuotes
@@ -540,7 +540,7 @@ def splitCommandsFile(line):
         i += 1
 
     if wordStart >= 0:
-        result.append(extractArgument(line, wordStart, len(line)))
+        result.append(line[wordStart:])
     return result
 
 def expandCommandLine(cmdline):
