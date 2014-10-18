@@ -1033,7 +1033,7 @@ def main():
 def processCompileRequest(compiler, args):
     printTraceStatement("Parsing given commandline '%s'" % args[1:] )
 
-    cmdLine = expandCommandLine(sys.argv[1:])
+    cmdLine = expandCommandLine(args[1:])
     printTraceStatement("Expanded commandline '%s'" % cmdLine )
     analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
@@ -1064,7 +1064,7 @@ def processCompileRequest(compiler, args):
         return processNoDirect(stats, cache, compiler, outputFile, cmdLine)
     if not '/showIncludes' in cmdLine:
         printTraceStatement("Cannot cache invocation as %s: no /showIncludes flag" % (' '.join(cmdLine)) )
-        return invokeRealCompiler(compiler, sys.argv[1:])
+        return invokeRealCompiler(compiler, args[1:])
     manifestHash = cache.getManifestHash(compiler, cmdLine, sourceFile)
     manifest = cache.getManifest(manifestHash)
     baseDir = os.environ.get('CLCACHE_BASEDIR')
