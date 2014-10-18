@@ -533,7 +533,7 @@ def splitCommandsFile(line):
         if line[i] == ' ' and not insideQuotes and wordStart >= 0:
             result.append(extractArgument(line, wordStart, i))
             wordStart = -1
-        if line[i] == '"': #by not checking for '\\"' this cannot recognize escaped quotes, but when building with VS the Fo value is a directory that ends in '\\"', which is not attempting to escape the quotes.
+        if (line[i] == '"') and ((i == 0) or (line[i - 1] != '\\') or ((i > 1) and (line[i - 2] == '\\'))):
             insideQuotes = not insideQuotes
         if line[i] != ' ' and wordStart < 0:
             wordStart = i
